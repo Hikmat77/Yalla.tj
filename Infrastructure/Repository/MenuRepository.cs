@@ -1,74 +1,73 @@
-using Dapper;
 using Domain.Interfaces;
 using Domain.Models;
 using Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repository;
 
 public class MenuRepository(AppDbContext appDbContext) : IMenuRepository
 {
-    private AppDbContext _context = appDbContext;
+    private readonly AppDbContext _context = appDbContext;
+
     public async Task<bool> AddMenuAsync(Menu menu)
     {
-        using var connection = _context.Connection();
-        var query = "insert into menus (menudate, isactive) values (@menudate::date, @isactive)";
-        var res = await connection.ExecuteAsync(query, menu);
-        return res>0;
+        await _context.Menus.AddAsync(menu);
+        return await _context.SaveChangesAsync() > 0;
     }
 
     public async Task<bool> AddMenuItemAsync(MenuItem menuItem)
     {
-        using var connection = _context.Connection();
-        var query = "insert into menuitems (menuid, name, description, price, category) values (@menuid, @name, @description, @price, @category)";
-        var res = await connection.ExecuteAsync(query, menuItem);
-        return res>0;
+        await _context.MenuItems.AddAsync(menuItem);
+        return await _context.SaveChangesAsync() > 0;
     }
 
-    public async Task<Menu?> GetMenuAsync(int id)
+    public Task<Menu?> GetMenuAsync(int id)
     {
-        using var connection = _context.Connection();
-        var query = "select * from menus where id = @id";
-        var menu = await connection.QueryFirstOrDefaultAsync<Menu>(query, new{id});
-        return menu;
+        return _context.Menus.FirstOrDefaultAsync(x => x.Id == id);
     }
 
-    public async Task<Menu?> GetActiveMenuAsync()
+    public Task<Menu?> GetActiveMenuAsync()
     {
-        using var connection = _context.Connection();
-        var query = "select * from menus where isactive = true order by menudate desc, id desc limit 1";
-        var menu = await connection.QueryFirstOrDefaultAsync<Menu>(query);
-        return menu;
+        return _context.Menus
+            .Where(x => x.IsActive)
+            .OrderByDescending(x => x.MenuDate)
+            .ThenByDescending(x => x.Id)
+            .FirstOrDefaultAsync();
     }
 
-    public async Task<Menu?> GetMenuByDateAsync(DateTime date)
+    public Task<Menu?> GetMenuByDateAsync(DateTime date)
     {
-        using var connection = _context.Connection();
-        var query = "select * from menus where menudate = @date::date order by isactive desc, id desc limit 1";
-        var menu = await connection.QueryFirstOrDefaultAsync<Menu>(query, new{date});
-        return menu;
+        return _context.Menus
+            .Where(x => x.MenuDate == date.Date)
+            .OrderByDescending(x => x.IsActive)
+            .ThenByDescending(x => x.Id)
+            .FirstOrDefaultAsync();
     }
 
-    public async Task<List<MenuItem>> GetMenuItemsAsync(int menuId)
+    public Task<List<MenuItem>> GetMenuItemsAsync(int menuId)
     {
-        using var connection = _context.Connection();
-        var query = "select * from menuitems where menuid = @menuId order by id";
-        var menuItems = await connection.QueryAsync<MenuItem>(query, new{menuId});
-        return menuItems.ToList();
+        return _context.MenuItems
+            .Where(x => x.MenuId == menuId)
+            .OrderBy(x => x.Id)
+            .ToListAsync();
     }
 
-    public async Task<List<MenuItem>> GetMenuItemsByIdsAsync(List<int> ids)
+    public Task<List<MenuItem>> GetMenuItemsByIdsAsync(List<int> ids)
     {
-        using var connection = _context.Connection();
-        var query = "select * from menuitems where id = any(@ids)";
-        var menuItems = await connection.QueryAsync<MenuItem>(query, new{ids = ids.ToArray()});
-        return menuItems.ToList();
+        if (ids.Count == 0)
+        {
+            return Task.FromResult(new List<MenuItem>());
+        }
+
+        return _context.MenuItems.Where(x => ids.Contains(x.Id)).ToListAsync();
     }
 
-    public async Task<List<string>> GetMenuCategoriesAsync()
+    public Task<List<string>> GetMenuCategoriesAsync()
     {
-        using var connection = _context.Connection();
-        var query = "select distinct category from menuitems order by category";
-        var categories = await connection.QueryAsync<string>(query);
-        return categories.ToList();
+        return _context.MenuItems
+            .Select(x => x.Category)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
     }
 }

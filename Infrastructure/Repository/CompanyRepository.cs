@@ -1,50 +1,56 @@
-using Dapper;
 using Domain.Interfaces;
 using Domain.Models;
 using Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repository;
 
 public class CompanyRepository(AppDbContext appDbContext) : ICompanyRepository
 {
-    private AppDbContext _context = appDbContext;
+    private readonly AppDbContext _context = appDbContext;
+
     public async Task<bool> AddCompanyAsync(Company company)
     {
-        using var connection = _context.Connection();
-        var query = "insert into companies (name, address, phone, email) values (@name, @address, @phone, @email)";
-        var res = await connection.ExecuteAsync(query, company);
-        return res>0;
+        await _context.Companies.AddAsync(company);
+        return await _context.SaveChangesAsync() > 0;
     }
 
     public async Task<bool> DeleteCompanyAsync(int id)
     {
-        using var connection = _context.Connection();
-        var query = "delete from companies where id = @id";
-        var res = await connection.ExecuteAsync(query, new{id});
-        return res>0;
+        var company = await _context.Companies.FirstOrDefaultAsync(x => x.Id == id);
+        if (company is null)
+        {
+            return false;
+        }
+
+        _context.Companies.Remove(company);
+        return await _context.SaveChangesAsync() > 0;
     }
 
-    public async Task<List<Company>> GetCompaniesAsync()
+    public Task<List<Company>> GetCompaniesAsync()
     {
-        using var connection = _context.Connection();
-        var query = "select * from companies order by id";
-        var companies = await connection.QueryAsync<Company>(query);
-        return companies.ToList();
+        return _context.Companies.OrderBy(x => x.Id).ToListAsync();
     }
 
-    public async Task<Company?> GetCompanyAsync(int id)
+    public Task<Company?> GetCompanyAsync(int id)
     {
-        using var connection = _context.Connection();
-        var query = "select * from companies where id = @id";
-        var company = await connection.QueryFirstOrDefaultAsync<Company>(query, new{id});
-        return company;
+        return _context.Companies.FirstOrDefaultAsync(x => x.Id == id);
     }
 
     public async Task<bool> UpdateCompanyAsync(Company company)
     {
-        using var connection = _context.Connection();
-        var query = "update companies set name = @name, address = @address, phone = @phone, email = @email, updatedat = current_timestamp where id = @id";
-        var res = await connection.ExecuteAsync(query, company);
-        return res>0;
+        var existingCompany = await _context.Companies.FirstOrDefaultAsync(x => x.Id == company.Id);
+        if (existingCompany is null)
+        {
+            return false;
+        }
+
+        existingCompany.Name = company.Name;
+        existingCompany.Address = company.Address;
+        existingCompany.Phone = company.Phone;
+        existingCompany.Email = company.Email;
+        existingCompany.UpdatedAt = DateTime.UtcNow;
+
+        return await _context.SaveChangesAsync() > 0;
     }
 }

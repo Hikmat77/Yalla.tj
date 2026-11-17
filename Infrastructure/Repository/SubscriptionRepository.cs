@@ -1,42 +1,47 @@
-using Dapper;
 using Domain.Interfaces;
 using Domain.Models;
 using Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repository;
 
 public class SubscriptionRepository(AppDbContext appDbContext) : ISubscriptionRepository
 {
-    private AppDbContext _context = appDbContext;
+    private readonly AppDbContext _context = appDbContext;
+
     public async Task<bool> AddSubscriptionAsync(Subscription subscription)
     {
-        using var connection = _context.Connection();
-        var query = "insert into subscriptions (companyid, plantype, mealsperday, price, startdate, enddate, isactive) values (@companyid, @plantype, @mealsperday, @price, @startdate::date, @enddate::date, @isactive)";
-        var res = await connection.ExecuteAsync(query, subscription);
-        return res>0;
+        await _context.Subscriptions.AddAsync(subscription);
+        return await _context.SaveChangesAsync() > 0;
     }
 
-    public async Task<List<Subscription>> GetActiveSubscriptionsAsync()
+    public Task<List<Subscription>> GetActiveSubscriptionsAsync()
     {
-        using var connection = _context.Connection();
-        var query = "select * from subscriptions where isactive = true order by id";
-        var subscriptions = await connection.QueryAsync<Subscription>(query);
-        return subscriptions.ToList();
+        return _context.Subscriptions
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Id)
+            .ToListAsync();
     }
 
-    public async Task<List<Subscription>> GetCompanySubscriptionsAsync(int companyId)
+    public Task<List<Subscription>> GetCompanySubscriptionsAsync(int companyId)
     {
-        using var connection = _context.Connection();
-        var query = "select * from subscriptions where companyid = @companyId order by id";
-        var subscriptions = await connection.QueryAsync<Subscription>(query, new{companyId});
-        return subscriptions.ToList();
+        return _context.Subscriptions
+            .Where(x => x.CompanyId == companyId)
+            .OrderBy(x => x.Id)
+            .ToListAsync();
     }
 
     public async Task<bool> UpdateSubscriptionStatusAsync(int id, bool isActive)
     {
-        using var connection = _context.Connection();
-        var query = "update subscriptions set isactive = @isActive, updatedat = current_timestamp where id = @id";
-        var res = await connection.ExecuteAsync(query, new{id, isActive});
-        return res>0;
+        var subscription = await _context.Subscriptions.FirstOrDefaultAsync(x => x.Id == id);
+        if (subscription is null)
+        {
+            return false;
+        }
+
+        subscription.IsActive = isActive;
+        subscription.UpdatedAt = DateTime.UtcNow;
+
+        return await _context.SaveChangesAsync() > 0;
     }
 }

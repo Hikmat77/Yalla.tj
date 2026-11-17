@@ -29,9 +29,6 @@
             "projectReferences": {
               "C:\\Users\\firuz\\OneDrive\\Desktop\\Yalla.tj\\Domain\\Domain.csproj": {
                 "projectPath": "C:\\Users\\firuz\\OneDrive\\Desktop\\Yalla.tj\\Domain\\Domain.csproj"
-              },
-              "C:\\Users\\firuz\\OneDrive\\Desktop\\Yalla.tj\\Infrastructure\\Infrastructure.csproj": {
-                "projectPath": "C:\\Users\\firuz\\OneDrive\\Desktop\\Yalla.tj\\Infrastructure\\Infrastructure.csproj"
               }
             }
           }
@@ -727,13 +724,15 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
-            "Dapper": {
+            "Microsoft.EntityFrameworkCore.Tools": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
               "target": "Package",
-              "version": "[2.1.89, )"
+              "version": "[10.0.*, )"
             },
-            "Npgsql": {
+            "Npgsql.EntityFrameworkCore.PostgreSQL": {
               "target": "Package",
-              "version": "[10.0.3, )"
+              "version": "[10.0.*, )"
             }
           },
           "imports": [
@@ -1082,6 +1081,12 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[10.0.*, )"
+            },
             "Serilog.AspNetCore": {
               "target": "Package",
               "version": "[10.0.0, )"

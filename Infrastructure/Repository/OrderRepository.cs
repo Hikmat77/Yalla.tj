@@ -1,83 +1,106 @@
-using System.Data.Common;
-using Dapper;
 using Domain.Interfaces;
 using Domain.Models;
 using Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repository;
 
 public class OrderRepository(AppDbContext appDbContext) : IOrderRepository
 {
-    private AppDbContext _context = appDbContext;
+    private readonly AppDbContext _context = appDbContext;
+
     public async Task<bool> AddOrderAsync(Order order, List<OrderItem> items)
     {
-        using var connection = (DbConnection)_context.Connection();
-        await connection.OpenAsync();
-        using var transaction = await connection.BeginTransactionAsync();
-        try
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
+        await _context.Orders.AddAsync(order);
+        await _context.SaveChangesAsync();
+
+        foreach (var item in items)
         {
-            var orderQuery = "insert into orders (companyid, orderdate, status, totalamount) values (@companyid, @orderdate::date, @status, @totalamount) returning id";
-            var orderId = await connection.ExecuteScalarAsync<int>(orderQuery, order, transaction);
-            foreach (var item in items)
-            {
-                item.OrderId = orderId;
-            }
-            var itemsQuery = "insert into orderitems (orderid, menuitemid, quantity, price) values (@orderid, @menuitemid, @quantity, @price)";
-            var res = await connection.ExecuteAsync(itemsQuery, items, transaction);
-            await transaction.CommitAsync();
-            return res>0;
+            item.OrderId = order.Id;
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await _context.OrderItems.AddRangeAsync(items);
+        var result = await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return result > 0;
     }
 
     public async Task<List<CompanyStatistics>> GetCompanyStatisticsAsync()
     {
-        using var connection = _context.Connection();
-        var query = @"select c.id as companyid, c.name as companyname, count(o.id)::int as totalorders, coalesce(sum(o.totalamount), 0) as totalamount, max(o.orderdate) as lastorderdate
-                      from companies c
-                      left join orders o on o.companyid = c.id
-                      group by c.id, c.name
-                      order by c.id";
-        var statistics = await connection.QueryAsync<CompanyStatistics>(query);
-        return statistics.ToList();
+        return await (
+            from company in _context.Companies
+            join order in _context.Orders on company.Id equals order.CompanyId into companyOrders
+            select new CompanyStatistics
+            {
+                CompanyId = company.Id,
+                CompanyName = company.Name,
+                TotalOrders = companyOrders.Count(),
+                TotalAmount = companyOrders.Sum(x => (decimal?)x.TotalAmount) ?? 0,
+                LastOrderDate = companyOrders.Max(x => (DateTime?)x.OrderDate)
+            }).ToListAsync();
     }
 
-    public async Task<List<Order>> GetCompanyOrdersAsync(int companyId)
+    public Task<List<Order>> GetCompanyOrdersAsync(int companyId)
     {
-        using var connection = _context.Connection();
-        var query = "select * from orders where companyid = @companyId order by orderdate desc, id desc";
-        var orders = await connection.QueryAsync<Order>(query, new{companyId});
-        return orders.ToList();
+        return _context.Orders
+            .Where(x => x.CompanyId == companyId)
+            .OrderByDescending(x => x.OrderDate)
+            .ThenByDescending(x => x.Id)
+            .ToListAsync();
     }
 
     public async Task<DailySummary> GetDailySummaryAsync(DateTime date)
     {
-        using var connection = _context.Connection();
-        var query = @"select count(o.id)::int as totalorders, coalesce(sum(o.totalamount), 0) as totalamount,
-                             coalesce((select sum(oi.quantity) from orderitems oi join orders o2 on o2.id = oi.orderid where o2.orderdate = @date::date), 0)::int as totalitems
-                      from orders o
-                      where o.orderdate = @date::date";
-        var summary = await connection.QuerySingleAsync<DailySummary>(query, new{date});
-        return summary;
+        var dailyOrders = _context.Orders.Where(x => x.OrderDate == date.Date);
+        var orderSummary = await dailyOrders
+            .GroupBy(x => x.OrderDate)
+            .Select(group => new DailySummary
+            {
+                TotalOrders = group.Count(),
+                TotalAmount = group.Sum(x => x.TotalAmount)
+            })
+            .FirstOrDefaultAsync();
+
+        var totalItems = await (
+            from item in _context.OrderItems
+            join order in dailyOrders on item.OrderId equals order.Id
+            select (int?)item.Quantity).SumAsync() ?? 0;
+
+        return new DailySummary
+        {
+            TotalOrders = orderSummary?.TotalOrders ?? 0,
+            TotalAmount = orderSummary?.TotalAmount ?? 0,
+            TotalItems = totalItems
+        };
     }
 
-    public async Task<List<OrderItem>> GetOrderItemsAsync(List<int> orderIds)
+    public Task<List<OrderItem>> GetOrderItemsAsync(List<int> orderIds)
     {
-        using var connection = _context.Connection();
-        var query = "select * from orderitems where orderid = any(@orderIds) order by id";
-        var items = await connection.QueryAsync<OrderItem>(query, new{orderIds = orderIds.ToArray()});
-        return items.ToList();
+        if (orderIds.Count == 0)
+        {
+            return Task.FromResult(new List<OrderItem>());
+        }
+
+        return _context.OrderItems
+            .Where(x => orderIds.Contains(x.OrderId))
+            .OrderBy(x => x.Id)
+            .ToListAsync();
     }
 
     public async Task<bool> UpdateOrderStatusAsync(int id, string status)
     {
-        using var connection = _context.Connection();
-        var query = "update orders set status = @status, updatedat = current_timestamp where id = @id";
-        var res = await connection.ExecuteAsync(query, new{id, status});
-        return res>0;
+        var order = await _context.Orders.FirstOrDefaultAsync(x => x.Id == id);
+        if (order is null)
+        {
+            return false;
+        }
+
+        order.Status = status;
+        order.UpdatedAt = DateTime.UtcNow;
+
+        return await _context.SaveChangesAsync() > 0;
     }
 }
