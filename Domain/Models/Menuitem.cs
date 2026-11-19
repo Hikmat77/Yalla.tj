@@ -10,4 +10,6 @@ public class MenuItem
     public string Category { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public Menu Menu { get; set; } = null!;
+    public List<OrderItem> OrderItems { get; set; } = [];
 }

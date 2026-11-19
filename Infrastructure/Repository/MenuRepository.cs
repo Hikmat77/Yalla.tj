@@ -30,6 +30,7 @@ public class MenuRepository(AppDbContext appDbContext) : IMenuRepository
     {
         return _context.Menus
             .Where(x => x.IsActive)
+            .Include(x => x.MenuItems)
             .OrderByDescending(x => x.MenuDate)
             .ThenByDescending(x => x.Id)
             .FirstOrDefaultAsync();
@@ -39,6 +40,7 @@ public class MenuRepository(AppDbContext appDbContext) : IMenuRepository
     {
         return _context.Menus
             .Where(x => x.MenuDate == date.Date)
+            .Include(x => x.MenuItems)
             .OrderByDescending(x => x.IsActive)
             .ThenByDescending(x => x.Id)
             .FirstOrDefaultAsync();

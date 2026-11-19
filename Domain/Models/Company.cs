@@ -9,4 +9,6 @@ public class Company
     public string Email { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public List<Order> Orders { get; set; } = [];
+    public List<Subscription> Subscriptions { get; set; } = [];
 }

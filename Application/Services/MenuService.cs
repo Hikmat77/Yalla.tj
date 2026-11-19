@@ -18,7 +18,7 @@ public class MenuService(IMenuRepository menuRepository) : IMenuService
         {
             return new ApiResponse<MenuDto>(HttpStatusCode.NotFound, "Active menu not found.");
         }
-        var items = await repository.GetMenuItemsAsync(menu.Id);
+        var items = menu.MenuItems.OrderBy(x => x.Id).ToList();
         return new ApiResponse<MenuDto>(HttpStatusCode.OK, "Active menu.", ToDto(menu, items));
     }
 
@@ -29,7 +29,7 @@ public class MenuService(IMenuRepository menuRepository) : IMenuService
         {
             return new ApiResponse<MenuDto>(HttpStatusCode.NotFound, "Menu not found.");
         }
-        var items = await repository.GetMenuItemsAsync(menu.Id);
+        var items = menu.MenuItems.OrderBy(x => x.Id).ToList();
         return new ApiResponse<MenuDto>(HttpStatusCode.OK, "Menu with given date.", ToDto(menu, items));
     }
 

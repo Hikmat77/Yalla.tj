@@ -47,6 +47,7 @@ public class OrderRepository(AppDbContext appDbContext) : IOrderRepository
     {
         return _context.Orders
             .Where(x => x.CompanyId == companyId)
+            .Include(x => x.OrderItems)
             .OrderByDescending(x => x.OrderDate)
             .ThenByDescending(x => x.Id)
             .ToListAsync();

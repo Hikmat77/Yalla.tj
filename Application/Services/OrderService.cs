@@ -25,7 +25,6 @@ public class OrderService(
             return new ApiResponse<List<OrderDto>>(HttpStatusCode.NotFound, "Company not found.");
         }
         var orders = await repository.GetCompanyOrdersAsync(companyId);
-        var items = await repository.GetOrderItemsAsync(orders.Select(x => x.Id).ToList());
         var res = orders.Select(x => new OrderDto()
         {
             Id = x.Id,
@@ -33,7 +32,7 @@ public class OrderService(
             OrderDate = x.OrderDate,
             Status = x.Status,
             TotalAmount = x.TotalAmount,
-            Items = items.Where(i => i.OrderId == x.Id).Select(i => new OrderItemDto()
+            Items = x.OrderItems.OrderBy(i => i.Id).Select(i => new OrderItemDto()
             {
                 Id = i.Id,
                 MenuItemId = i.MenuItemId,

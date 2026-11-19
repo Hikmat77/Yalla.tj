@@ -26,6 +26,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(x => x.CreatedAt).HasColumnName("createdat").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(x => x.UpdatedAt).HasColumnName("updatedat").HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
+        modelBuilder.Entity<Order>()
+            .HasOne(x => x.Company)
+            .WithMany(x => x.Orders)
+            .HasForeignKey(x => x.CompanyId);
+        modelBuilder.Entity<Subscription>()
+            .HasOne(x => x.Company)
+            .WithMany(x => x.Subscriptions)
+            .HasForeignKey(x => x.CompanyId);
 
         modelBuilder.Entity<Menu>(entity =>
         {
@@ -37,6 +45,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(x => x.CreatedAt).HasColumnName("createdat").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(x => x.UpdatedAt).HasColumnName("updatedat").HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
+        modelBuilder.Entity<MenuItem>()
+            .HasOne(x => x.Menu)
+            .WithMany(x => x.MenuItems)
+            .HasForeignKey(x => x.MenuId);
 
         modelBuilder.Entity<MenuItem>(entity =>
         {
@@ -51,6 +63,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(x => x.CreatedAt).HasColumnName("createdat").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(x => x.UpdatedAt).HasColumnName("updatedat").HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
+        modelBuilder.Entity<OrderItem>()
+            .HasOne(x => x.MenuItem)
+            .WithMany(x => x.OrderItems)
+            .HasForeignKey(x => x.MenuItemId);
 
         modelBuilder.Entity<Subscription>(entity =>
         {
@@ -93,5 +109,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(x => x.CreatedAt).HasColumnName("createdat").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(x => x.UpdatedAt).HasColumnName("updatedat").HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
+        modelBuilder.Entity<OrderItem>()
+            .HasOne(x => x.Order)
+            .WithMany(x => x.OrderItems)
+            .HasForeignKey(x => x.OrderId);
     }
 }
