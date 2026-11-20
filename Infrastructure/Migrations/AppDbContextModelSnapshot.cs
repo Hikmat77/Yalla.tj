@@ -316,7 +316,7 @@ namespace Infrastructure.Migrations
                     b.HasOne("Domain.Models.Company", "Company")
                         .WithMany("Orders")
                         .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Company");
@@ -327,7 +327,7 @@ namespace Infrastructure.Migrations
                     b.HasOne("Domain.Models.MenuItem", "MenuItem")
                         .WithMany("OrderItems")
                         .HasForeignKey("MenuItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Domain.Models.Order", "Order")
@@ -346,7 +346,7 @@ namespace Infrastructure.Migrations
                     b.HasOne("Domain.Models.Company", "Company")
                         .WithMany("Subscriptions")
                         .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Company");
